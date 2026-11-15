@@ -26,8 +26,10 @@ def test_headings_inside_code_fences_are_not_headings() -> None:
 
 
 def test_html_drops_scripts_and_keeps_structure() -> None:
-    html = b"<html><head><title>Guide</title><script>alert(1)</script></head><body><h1>Guide</h1><p>One.</p>" \
-           b"<h2>Part</h2><ul><li>item</li></ul></body></html>"
+    html = (
+        b"<html><head><title>Guide</title><script>alert(1)</script></head><body><h1>Guide</h1><p>One.</p>"
+        b"<h2>Part</h2><ul><li>item</li></ul></body></html>"
+    )
     doc = parse(html, "text/html", "g.html")
     assert doc.title == "Guide"
     assert "alert" not in doc.text

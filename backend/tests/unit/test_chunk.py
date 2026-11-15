@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import itertools
+
 import pytest
 
 from cortex.ingest.chunk import chunk_document, embed_text
@@ -34,7 +36,7 @@ def test_consecutive_chunks_overlap_by_whole_paragraphs() -> None:
     doc = parse(md(12, 20), "text/markdown", "a.md")
     chunks = chunk_document(doc, words, max_tokens=80, overlap_tokens=30, model_limit=128)
     assert len(chunks) > 2
-    for a, b in zip(chunks, chunks[1:], strict=False):
+    for a, b in itertools.pairwise(chunks):
         assert b.char_start < a.char_end, "expected overlap between neighbouring chunks"
         assert b.char_start > a.char_start, "chunking must always make progress"
 
@@ -49,24 +51,33 @@ def test_oversized_paragraph_is_split_not_truncated() -> None:
 
 def test_chunks_do_not_cross_sections() -> None:
     raw = b"# T\n\n## A\n\nalpha text here.\n\n## B\n\nbeta text here."
-    chunks = chunk_document(parse(raw, "text/markdown", "t.md"), words, max_tokens=200, overlap_tokens=0,
-                            model_limit=256)
+    chunks = chunk_document(
+        parse(raw, "text/markdown", "t.md"), words, max_tokens=200, overlap_tokens=0, model_limit=256
+    )
     assert [c.heading_path for c in chunks] == ["T > A", "T > B"]
     assert chunks[0].embed_text == embed_text("T > A", "alpha text here.")
 
 
 def test_content_hash_is_deterministic_and_content_sensitive() -> None:
-    a = chunk_document(parse(md(3, 10), "text/markdown", "a.md"), words, max_tokens=50, overlap_tokens=0,
-                       model_limit=64)
-    b = chunk_document(parse(md(3, 10), "text/markdown", "a.md"), words, max_tokens=50, overlap_tokens=0,
-                       model_limit=64)
+    a = chunk_document(
+        parse(md(3, 10), "text/markdown", "a.md"), words, max_tokens=50, overlap_tokens=0, model_limit=64
+    )
+    b = chunk_document(
+        parse(md(3, 10), "text/markdown", "a.md"), words, max_tokens=50, overlap_tokens=0, model_limit=64
+    )
     assert [c.content_hash for c in a] == [c.content_hash for c in b]
-    changed = chunk_document(parse(md(3, 10).replace(b"w1_3", b"CHANGED"), "text/markdown", "a.md"), words,
-                             max_tokens=50, overlap_tokens=0, model_limit=64)
+    changed = chunk_document(
+        parse(md(3, 10).replace(b"w1_3", b"CHANGED"), "text/markdown", "a.md"),
+        words,
+        max_tokens=50,
+        overlap_tokens=0,
+        model_limit=64,
+    )
     assert [c.content_hash for c in a] != [c.content_hash for c in changed]
 
 
 def test_budget_above_model_limit_is_rejected() -> None:
     with pytest.raises(ValueError, match="input limit"):
-        chunk_document(parse(md(1, 5), "text/markdown", "a.md"), words, max_tokens=600, overlap_tokens=0,
-                       model_limit=512)
+        chunk_document(
+            parse(md(1, 5), "text/markdown", "a.md"), words, max_tokens=600, overlap_tokens=0, model_limit=512
+        )

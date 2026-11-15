@@ -42,6 +42,8 @@ def test_search_name_splits_camel_case() -> None:
 def test_or_query_contains_only_safe_terms() -> None:
     q = or_query("What's kube-proxy's role? '); DROP TABLE chunks; --")
     assert q is not None
-    assert ";" not in q and "'" not in q and "--" not in q
+    assert ";" not in q
+    assert "'" not in q
+    assert "--" not in q
     assert "(kube <-> proxy)" in q
     assert or_query("?! ...") is None

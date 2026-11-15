@@ -1,6 +1,6 @@
 # CORTEX
 
-**[Live demo →](https://devanshubh.github.io/cortex/)** (static front end; replays answers recorded from the real system)
+**[Live demo →](https://devanshubh.github.io/cortex/)** (static front end with prepared answers; no server behind it)
 
 **A multi-tenant research assistant that answers questions over a team's documents and cites the exact passage behind
 every claim.** Hybrid retrieval (Postgres full-text + pgvector, fused with Reciprocal Rank Fusion and reranked by a

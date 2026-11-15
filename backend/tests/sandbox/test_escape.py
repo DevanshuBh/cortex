@@ -23,7 +23,8 @@ RUNNER = Path(__file__).resolve().parents[3] / "sandbox" / "runner" / "runner.py
 
 def _load_runner() -> ModuleType:
     spec = importlib.util.spec_from_file_location("sandbox_runner", RUNNER)
-    assert spec and spec.loader
+    assert spec
+    assert spec.loader
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -33,7 +34,9 @@ def _load_runner() -> ModuleType:
 def run() -> Any:
     if shutil.which("docker") is None:
         pytest.skip("docker not available")
-    image = subprocess.run(["docker", "image", "inspect", "cortex-sandbox:latest"], capture_output=True, check=False)
+    image = subprocess.run(
+        ["docker", "image", "inspect", "cortex-sandbox:latest"], capture_output=True, check=False
+    )
     if image.returncode != 0:
         pytest.skip("cortex-sandbox:latest not built")
     os.environ.setdefault("SANDBOX_IMAGE", "cortex-sandbox:latest")
@@ -42,7 +45,8 @@ def run() -> Any:
 
 def test_normal_code_runs(run: Any) -> None:
     r = run("print(sum(range(10)))")
-    assert r["exit_code"] == 0 and r["stdout"].strip() == "45"
+    assert r["exit_code"] == 0
+    assert r["stdout"].strip() == "45"
 
 
 def test_no_network(run: Any) -> None:
@@ -60,19 +64,24 @@ def test_no_network(run: Any) -> None:
         "    print('no dns')\n"
     )
     r = run(code)
-    assert "CONNECTED" not in r["stdout"] and "RESOLVED" not in r["stdout"]
-    assert "blocked" in r["stdout"] and "no dns" in r["stdout"]
+    assert "CONNECTED" not in r["stdout"]
+    assert "RESOLVED" not in r["stdout"]
+    assert "blocked" in r["stdout"]
+    assert "no dns" in r["stdout"]
 
 
 def test_no_secrets_visible(run: Any) -> None:
     os.environ["CORTEX_TEST_SECRET"] = "s3cr3t-value"  # set in the runner's environment...
     r = run("import os, json; print(json.dumps(dict(os.environ)))")
     assert "s3cr3t-value" not in r["stdout"]  # ...and never passed into the sandbox
-    assert "CORTEX" not in r["stdout"] and "AWS" not in r["stdout"]
+    assert "CORTEX" not in r["stdout"]
+    assert "AWS" not in r["stdout"]
 
 
 def test_no_docker_socket_or_host_mounts(run: Any) -> None:
-    r = run("import os; print(os.path.exists('/var/run/docker.sock'), os.path.exists('/app'), os.listdir('/'))")
+    r = run(
+        "import os; print(os.path.exists('/var/run/docker.sock'), os.path.exists('/app'), os.listdir('/'))"
+    )
     assert r["stdout"].startswith("False False")
 
 
@@ -86,7 +95,9 @@ def test_root_filesystem_is_read_only(run: Any) -> None:
         "open('/tmp/ok.txt', 'w').write('fine'); print('tmp ok')\n"
     )
     r = run(code)
-    assert "WROTE" not in r["stdout"] and r["stdout"].count("denied") == 3 and "tmp ok" in r["stdout"]
+    assert "WROTE" not in r["stdout"]
+    assert r["stdout"].count("denied") == 3
+    assert "tmp ok" in r["stdout"]
 
 
 def test_runs_as_nobody_without_capabilities(run: Any) -> None:
@@ -100,7 +111,8 @@ def test_runs_as_nobody_without_capabilities(run: Any) -> None:
 
 def test_infinite_loop_is_killed(run: Any) -> None:
     r = run("while True: pass", timeout_s=3)
-    assert r["timed_out"] and r["exit_code"] != 0
+    assert r["timed_out"]
+    assert r["exit_code"] != 0
     assert r["duration_ms"] < 30_000
 
 
@@ -135,4 +147,5 @@ def test_huge_output_is_truncated(run: Any) -> None:
 
 def test_code_size_limit(run: Any) -> None:
     r = run("#" * 20_000)
-    assert r["exit_code"] == -1 and "too large" in r["stderr"]
+    assert r["exit_code"] == -1
+    assert "too large" in r["stderr"]

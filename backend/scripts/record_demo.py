@@ -34,8 +34,23 @@ def record(tenant: str, question: str) -> dict[str, Any]:
         events.append({"t": at(), "event": "token", "data": {"text": piece}})
 
     res = answer_question(tenant, question, emit=emit, on_token=on_token, log_calls=False)
-    answer = {k: res[k] for k in ("answer", "evidence", "graph_paths", "route", "partial", "not_found", "stop_reason",
-                                  "steps", "input_tokens", "output_tokens", "cost_usd", "latency_ms")}
+    answer = {
+        k: res[k]
+        for k in (
+            "answer",
+            "evidence",
+            "graph_paths",
+            "route",
+            "partial",
+            "not_found",
+            "stop_reason",
+            "steps",
+            "input_tokens",
+            "output_tokens",
+            "cost_usd",
+            "latency_ms",
+        )
+    }
     events.append({"t": at(), "event": "answer", "data": answer})
     return {"question": question, "events": events}
 
@@ -48,8 +63,11 @@ def main() -> None:
         print(f"recording: {q}", flush=True)
         sc = record(tenant, q)
         ans = sc["events"][-1]["data"]
-        print(f"  route={ans['route']} not_found={ans['not_found']} evidence={len(ans['evidence'])} "
-              f"latency={ans['latency_ms']} ms", flush=True)
+        print(
+            f"  route={ans['route']} not_found={ans['not_found']} evidence={len(ans['evidence'])} "
+            f"latency={ans['latency_ms']} ms",
+            flush=True,
+        )
         scenarios.append(sc)
     doc = {
         "recorded_at": datetime.now(UTC).isoformat(timespec="seconds"),

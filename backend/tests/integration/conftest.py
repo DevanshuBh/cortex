@@ -34,10 +34,9 @@ def _reset_caches() -> None:
 def pg() -> Iterator[dict[str, str]]:
     from testcontainers.postgres import PostgresContainer
 
-    container = (
-        PostgresContainer(PG_IMAGE, username="postgres", password="postgres-test", dbname="postgres")
-        .with_volume_mapping(str(INIT_SQL), "/docker-entrypoint-initdb.d/10-init.sql", "ro")
-    )
+    container = PostgresContainer(
+        PG_IMAGE, username="postgres", password="postgres-test", dbname="postgres"
+    ).with_volume_mapping(str(INIT_SQL), "/docker-entrypoint-initdb.d/10-init.sql", "ro")
     with container:
         host, port = container.get_container_host_ip(), container.get_exposed_port(5432)
         urls = {

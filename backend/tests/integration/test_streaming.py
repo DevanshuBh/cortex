@@ -14,7 +14,9 @@ from cortex.streaming import EventSink, read_events
 pytestmark = pytest.mark.integration
 
 
-async def _collect(url: str, task_id: str, last_id: str | None, stop_after: int | None = None) -> list[tuple[str, str]]:
+async def _collect(
+    url: str, task_id: str, last_id: str | None, stop_after: int | None = None
+) -> list[tuple[str, str]]:
     client = aioredis.Redis.from_url(url, decode_responses=True)
     out: list[tuple[str, str]] = []
     async for item in read_events(task_id, last_id, block_ms=200, client=client):
@@ -41,13 +43,27 @@ def test_reconnect_with_last_event_id_resumes_without_gaps(redis_url: str) -> No
     events = [e for _, e in first + rest]
     assert events == ["step"] * 8 + ["done"]
     ids = [i for i, _ in first + rest]
-    assert ids == sorted(ids, key=lambda x: tuple(int(p) for p in x.split("-"))) and len(set(ids)) == len(ids)
+    assert ids == sorted(ids, key=lambda x: tuple(int(p) for p in x.split("-")))
+    assert len(set(ids)) == len(ids)
 
 
 def test_tokens_are_batched_and_flushed_in_order(redis_url: str) -> None:
     task_id = str(uuid.uuid4())
     sink = EventSink(task_id, redis.Redis.from_url(redis_url, decode_responses=True))
-    for word in "A Pod runs one or more containers that share storage and network".split():
+    for word in [
+        "A",
+        "Pod",
+        "runs",
+        "one",
+        "or",
+        "more",
+        "containers",
+        "that",
+        "share",
+        "storage",
+        "and",
+        "network",
+    ]:
         sink.token(word + " ")
     sink.emit("done", {})  # emit flushes pending tokens first
     client = redis.Redis.from_url(redis_url, decode_responses=True)

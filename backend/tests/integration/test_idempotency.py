@@ -17,9 +17,19 @@ pytestmark = pytest.mark.integration
 
 
 def _answer(q: str = "q") -> dict[str, Any]:
-    return {"question": q, "answer": "a [1]", "evidence": [], "route": "content", "partial": False,
-            "not_found": False, "steps": 1, "input_tokens": 1, "output_tokens": 1, "cost_usd": 0.0,
-            "latency_ms": 1}
+    return {
+        "question": q,
+        "answer": "a [1]",
+        "evidence": [],
+        "route": "content",
+        "partial": False,
+        "not_found": False,
+        "steps": 1,
+        "input_tokens": 1,
+        "output_tokens": 1,
+        "cost_usd": 0.0,
+        "latency_ms": 1,
+    }
 
 
 def test_same_idempotency_key_returns_the_same_task(tenant: str) -> None:
@@ -27,7 +37,9 @@ def test_same_idempotency_key_returns_the_same_task(tenant: str) -> None:
         a, created_a = repo.create_task(db, tenant, "ask", {"question": "x"}, idempotency_key="key-12345678")
         b, created_b = repo.create_task(db, tenant, "ask", {"question": "x"}, idempotency_key="key-12345678")
         c, _ = repo.create_task(db, tenant, "ask", {"question": "x"})
-    assert a == b and created_a and not created_b
+    assert a == b
+    assert created_a
+    assert not created_b
     assert c != a
 
 
@@ -39,7 +51,8 @@ def test_finished_task_is_not_restarted_by_a_redelivered_message(tenant: str) ->
         assert repo.start_task(db, tenant, tid) is None
         repo.finish_task(db, tenant, tid, "failed", error="late duplicate")  # cannot overwrite success
         t = repo.get_task(db, tenant, tid)
-    assert t is not None and t.status == "succeeded"
+    assert t is not None
+    assert t.status == "succeeded"
 
 
 def test_one_answer_per_task(tenant: str) -> None:
@@ -48,20 +61,25 @@ def test_one_answer_per_task(tenant: str) -> None:
         assert repo.save_answer(db, tenant, tid, _answer("first"))
         assert not repo.save_answer(db, tenant, tid, _answer("second"))
         got = repo.get_answer(db, tenant, tid)
-    assert got is not None and got["question"] == "first"
+    assert got is not None
+    assert got["question"] == "first"
 
 
 def test_replacing_chunks_twice_leaves_one_copy_with_stable_ids(tenant: str) -> None:
     chunks = [Chunk(i, "H", f"text {i}", i * 10, i * 10 + 6, 4, f"hash{i}") for i in range(3)]
     vec = "[" + ",".join(["0.1"] * 384) + "]"
     with tenant_session(tenant) as db:
-        doc = repo.create_document(db, tenant, title="t", filename="t.md", mime="text/markdown", object_key="k",
-                                   status="ready")
+        doc = repo.create_document(
+            db, tenant, title="t", filename="t.md", mime="text/markdown", object_key="k", status="ready"
+        )
         first = repo.replace_chunks(db, tenant, doc, "v1", chunks, [vec] * 3)
     with tenant_session(tenant) as db:
         second = repo.replace_chunks(db, tenant, doc, "v1", chunks, [vec] * 3)
-        n = db.execute(text("SELECT count(*) FROM chunks WHERE document_id = CAST(:d AS uuid)"), {"d": doc}).scalar()
-    assert first == second and n == 3
+        n = db.execute(
+            text("SELECT count(*) FROM chunks WHERE document_id = CAST(:d AS uuid)"), {"d": doc}
+        ).scalar()
+    assert first == second
+    assert n == 3
 
 
 def test_side_effecting_tool_runs_once_across_redelivery(tenant: str) -> None:

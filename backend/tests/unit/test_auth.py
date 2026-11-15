@@ -21,21 +21,33 @@ OTHER_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 class _Jwks:
     def get_signing_key_from_jwt(self, _token: str) -> Any:
         return jwt.PyJWK.from_dict(
-            {**jwt.algorithms.RSAAlgorithm.to_jwk(KEY.public_key(), as_dict=True), "alg": "RS256", "kid": "k1"}
+            {
+                **jwt.algorithms.RSAAlgorithm.to_jwk(KEY.public_key(), as_dict=True),
+                "alg": "RS256",
+                "kid": "k1",
+            }
         )
 
 
 @pytest.fixture(autouse=True)
 def fake_jwks(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(auth, "_jwks_client", lambda _url: _Jwks())
-    yield
+    return
 
 
 def token(key: Any = KEY, **overrides: Any) -> str:
     s = get_settings()
     now = int(time.time())
-    claims = {"sub": "u1", "iss": s.oidc_issuer, "aud": s.oidc_audience, "iat": now, "exp": now + 300,
-              "tenant_id": "acme", "realm_access": {"roles": ["member"]}, **overrides}
+    claims = {
+        "sub": "u1",
+        "iss": s.oidc_issuer,
+        "aud": s.oidc_audience,
+        "iat": now,
+        "exp": now + 300,
+        "tenant_id": "acme",
+        "realm_access": {"roles": ["member"]},
+        **overrides,
+    }
     claims = {k: v for k, v in claims.items() if v is not None}
     return jwt.encode(claims, key, algorithm="RS256", headers={"kid": "k1"})
 
@@ -79,4 +91,5 @@ def test_missing_token(client: TestClient) -> None:
 
 def test_admin_role_from_realm_roles() -> None:
     p = auth.principal_from_claims({"sub": "u", "tenant_id": "t", "realm_access": {"roles": ["admin"]}})
-    assert p.is_admin and p.tenant_id == "t"
+    assert p.is_admin
+    assert p.tenant_id == "t"

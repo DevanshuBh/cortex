@@ -19,15 +19,26 @@ from cortex.router import RuleRouter
 
 
 def chunk(i: int) -> dict[str, Any]:
-    return {"chunk_id": f"c{i}", "document_id": "d1", "title": "Pods", "heading": "Pods > Overview",
-            "text": f"Fact number {i}: a Pod runs one or more containers.", "source": "rerank"}
+    return {
+        "chunk_id": f"c{i}",
+        "document_id": "d1",
+        "title": "Pods",
+        "heading": "Pods > Overview",
+        "text": f"Fact number {i}: a Pod runs one or more containers.",
+        "source": "rerank",
+    }
 
 
 class Script:
     """Scripted model: reacts to which system prompt it receives."""
 
-    def __init__(self, *, answer: str = "A Pod runs containers [1].", follow_ups: Sequence[str | None] = (),
-                 needs_calc: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        answer: str = "A Pod runs containers [1].",
+        follow_ups: Sequence[str | None] = (),
+        needs_calc: bool = False,
+    ) -> None:
         self.answer = answer
         self.follow_ups = list(follow_ups)
         self.needs_calc = needs_calc
@@ -38,7 +49,9 @@ class Script:
         if system.startswith("You check whether retrieved passages"):
             self.steps.append("assess")
             q = self.follow_ups.pop(0) if self.follow_ups else None
-            return json.dumps({"sufficient": q is None, "follow_up_query": q, "needs_calculation": self.needs_calc})
+            return json.dumps(
+                {"sufficient": q is None, "follow_up_query": q, "needs_calculation": self.needs_calc}
+            )
         if system.startswith("You write a short Python 3 program"):
             self.steps.append("code")
             return "```python\nprint('total:', 3 * 2)\n```"
@@ -62,8 +75,15 @@ def make(
     ctx = CallContext(tenant_id="t1", log_calls=False)
     guard = LoopGuard(Budget(max_steps, max_tokens, 2, 60.0))
     events: list[tuple[str, dict[str, Any]]] = []
-    sup = Supervisor(llm=llm, ctx=ctx, router=RuleRouter(), toolbox=Toolbox("t1", None, guard, tools, ledger=False),
-                     guard=guard, emit=lambda e, d: events.append((e, d)), on_token=on_token)
+    sup = Supervisor(
+        llm=llm,
+        ctx=ctx,
+        router=RuleRouter(),
+        toolbox=Toolbox("t1", None, guard, tools, ledger=False),
+        guard=guard,
+        emit=lambda e, d: events.append((e, d)),
+        on_token=on_token,
+    )
     return sup, events
 
 
@@ -81,7 +101,8 @@ def test_content_question_gets_a_cited_answer() -> None:
     sup, events = make(script, {"hybrid_search": hybrid_returning([1, 2, 3])})
     run = sup.run("What is a Pod?")
     assert run.answer == "A Pod runs containers [1]."
-    assert not run.not_found and not run.partial
+    assert not run.not_found
+    assert not run.partial
     assert [e.chunk_id for e in run.evidence] == ["c1", "c2", "c3"]
     assert script.steps == ["assess", "answer"]
     assert [e for e, _ in events].count("step") >= 3
@@ -91,7 +112,8 @@ def test_no_evidence_means_not_found_without_calling_the_large_model() -> None:
     script = Script()
     sup, _ = make(script, {"hybrid_search": hybrid_returning([])})
     run = sup.run("What is the airspeed of an unladen swallow?")
-    assert run.not_found and run.answer == NOT_FOUND_TEXT
+    assert run.not_found
+    assert run.answer == NOT_FOUND_TEXT
     assert "answer" not in script.steps
 
 
@@ -106,7 +128,8 @@ def test_looping_agent_stops_when_follow_ups_add_nothing() -> None:
     script = Script(follow_ups=["pods detail", "pods more detail", "pods even more", "and more"])
     sup, _ = make(script, {"hybrid_search": hybrid_returning([1], [1], [1], [1], [1])})
     run = sup.run("What is a Pod?")
-    assert run.partial and run.stop_reason == "no_progress"
+    assert run.partial
+    assert run.stop_reason == "no_progress"
     assert run.answer.endswith("[1].")  # still answers from the evidence it has
     assert sup.guard.steps <= 8
 
@@ -115,24 +138,32 @@ def test_long_legitimate_task_is_not_stopped_early() -> None:
     script = Script(follow_ups=["second aspect", "third aspect"])
     sup, _ = make(script, {"hybrid_search": hybrid_returning([1, 2], [3, 4], [5, 6])})
     run = sup.run("Explain Pods, their lifecycle and their networking")
-    assert not run.partial and run.stop_reason is None
+    assert not run.partial
+    assert run.stop_reason is None
     assert len(run.evidence) == 6
-    assert run.queries == ["Explain Pods, their lifecycle and their networking", "second aspect", "third aspect"]
+    assert run.queries == [
+        "Explain Pods, their lifecycle and their networking",
+        "second aspect",
+        "third aspect",
+    ]
 
 
 def test_step_budget_bounds_the_run() -> None:
     script = Script(follow_ups=["a", "b", "c", "d"])
     sup, _ = make(script, {"hybrid_search": hybrid_returning([1], [2], [3], [4], [5])}, max_steps=2)
     run = sup.run("What is a Pod?")
-    assert run.partial and run.stop_reason == "step_budget"
+    assert run.partial
+    assert run.stop_reason == "step_budget"
 
 
 def test_token_budget_gives_an_extractive_partial_answer_without_the_large_model() -> None:
     script = Script()
     sup, _ = make(script, {"hybrid_search": hybrid_returning([1, 2])}, max_tokens=1)
     run = sup.run("What is a Pod?")
-    assert run.partial and run.stop_reason == "token_budget"
-    assert "budget ran out" in run.answer and "[1]" in run.answer
+    assert run.partial
+    assert run.stop_reason == "token_budget"
+    assert "budget ran out" in run.answer
+    assert "[1]" in run.answer
     assert "answer" not in script.steps
 
 
@@ -147,7 +178,8 @@ def test_calculation_question_runs_the_coder_in_the_sandbox() -> None:
     sup, events = make(script, {"hybrid_search": hybrid_returning([1]), "run_code": run_code})
     run = sup.run("Calculate the total pods for 3 replicas times 2 nodes")
     assert ran == ["print('total:', 3 * 2)"]
-    assert run.code_result and run.code_result["stdout"] == "total: 6\n"
+    assert run.code_result
+    assert run.code_result["stdout"] == "total: 6\n"
     assert "code" in [e for e, _ in events]
 
 

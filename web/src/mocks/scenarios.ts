@@ -54,7 +54,7 @@ export function findScenario(question: string): Scenario | null {
 export function offScriptEvents(notFound: boolean): DemoEvent[] {
   const answer = notFound
     ? "Not found in your documents."
-    : "This public demo has no model server behind it, so it can only replay answers recorded from the real system. " +
+    : "This public demo has no model server behind it, so it can only replay prepared answers. " +
       "Pick one of the sample questions, or run CORTEX locally (see the README) to ask anything.";
   return [
     { t: 0, event: "step", data: demoSteps[0] as unknown as Record<string, unknown> },

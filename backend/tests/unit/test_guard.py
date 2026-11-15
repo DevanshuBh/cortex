@@ -7,8 +7,14 @@ from cortex.agents.guard import Budget, LoopGuard
 
 def guard(**kw: float) -> LoopGuard:
     b = {"max_steps": 5, "max_tokens": 1000, "no_progress_steps": 2, "wall_clock_seconds": 60.0, **kw}
-    return LoopGuard(Budget(int(b["max_steps"]), int(b["max_tokens"]), int(b["no_progress_steps"]),
-                            float(b["wall_clock_seconds"])))
+    return LoopGuard(
+        Budget(
+            int(b["max_steps"]),
+            int(b["max_tokens"]),
+            int(b["no_progress_steps"]),
+            float(b["wall_clock_seconds"]),
+        )
+    )
 
 
 def test_step_budget() -> None:

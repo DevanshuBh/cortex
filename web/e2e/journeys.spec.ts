@@ -81,7 +81,7 @@ test("an off-script question in the demo says what the demo is instead of invent
   await expect(page.getByText("Live demo.")).toBeVisible();
   await page.getByLabel("Your question").fill("How do I configure a NetworkPolicy for egress traffic?");
   await page.keyboard.press("Enter");
-  await expect(page.getByText(/can only replay answers recorded from the real system/)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/can only replay prepared answers/)).toBeVisible({ timeout: 10_000 });
 });
 
 test("the about page explains the system and passes accessibility checks", async ({ page }) => {

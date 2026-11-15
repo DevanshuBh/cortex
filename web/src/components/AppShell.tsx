@@ -8,6 +8,7 @@ import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth";
 import { config } from "@/lib/config";
 import { useResearch } from "@/lib/research";
+import { isRecorded } from "@/mocks/scenarios";
 import { Button, Spinner } from "./ui";
 
 const NAV = [
@@ -21,8 +22,10 @@ function DemoBanner() {
   return (
     <div className="border-b border-[var(--color-border)] bg-[var(--color-accent-soft)] text-[13px]">
       <p className="mx-auto max-w-[1500px] px-4 py-2">
-        <strong>Live demo.</strong> This page has no server behind it: it replays answers recorded from the real system
-        over the Kubernetes docs.{" "}
+        <strong>Live demo.</strong> This page has no server behind it:{" "}
+        {isRecorded
+          ? "it replays answers recorded from the real system over the Kubernetes docs."
+          : "a sample answer over the Kubernetes docs shows what the real system returns."}{" "}
         <Link href="/about/" className="font-medium text-[var(--color-accent)] underline underline-offset-2">How it works</Link>
         {config.repoUrl && (
           <>{" · "}<a href={config.repoUrl} className="font-medium text-[var(--color-accent)] underline underline-offset-2">Source code</a></>
