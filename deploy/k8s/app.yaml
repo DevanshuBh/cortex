@@ -8,11 +8,17 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: migrate
           image: cortex-backend
           command: ["sh", "-c", "python -m cortex.cli migrate && python -m cortex.cli init"]
           envFrom: [{ configMapRef: { name: cortex-config } }, { secretRef: { name: cortex-secrets } }]
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 512Mi } }
+          securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: { sizeLimit: 128Mi } }]
 ---
 apiVersion: apps/v1
 kind: Deployment
