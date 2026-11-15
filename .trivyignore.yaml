@@ -1,0 +1,13 @@
+# Accepted findings, each with the reason. Everything else in the scan must stay at zero HIGH/CRITICAL.
+misconfigurations:
+  - id: KSV-0014
+    paths: ["deploy/k8s/data.yaml"]
+    statement: >-
+      Neo4j only: its entrypoint writes neo4j.conf from the environment at start, so its root filesystem stays
+      writable. It runs as uid 7474 with no capabilities and no privilege escalation; Postgres, Redis, SeaweedFS
+      and Ollama in the same file are read-only (verified by booting each image with these settings).
+  - id: KSV-0014
+    paths: ["deploy/k8s/keycloak.yaml"]
+    statement: >-
+      Keycloak `start` re-augments the server into /opt/keycloak at boot. It runs as uid 1000 with no
+      capabilities and no privilege escalation.

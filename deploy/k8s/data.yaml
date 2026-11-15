@@ -9,6 +9,8 @@ spec:
   template:
     metadata: { labels: { app: postgres } }
     spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 999, runAsGroup: 999, fsGroup: 999, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: postgres
           image: pgvector/pgvector:0.8.7-pg18-trixie
@@ -18,10 +20,16 @@ spec:
           ports: [{ containerPort: 5432 }]
           readinessProbe: { exec: { command: ["pg_isready", "-U", "postgres"] }, periodSeconds: 5 }
           resources: { requests: { cpu: 100m, memory: 512Mi }, limits: { memory: 1536Mi } }
+          securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
           volumeMounts:
             - { name: data, mountPath: /var/lib/postgresql }
             - { name: init, mountPath: /docker-entrypoint-initdb.d }
-      volumes: [{ name: init, configMap: { name: postgres-init } }]
+            - { name: run, mountPath: /var/run/postgresql }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: init, configMap: { name: postgres-init } }
+        - { name: run, emptyDir: { medium: Memory, sizeLimit: 16Mi } }
+        - { name: tmp, emptyDir: { sizeLimit: 256Mi } }
   volumeClaimTemplates:
     - metadata: { name: data }
       spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: 10Gi } } }
@@ -41,6 +49,8 @@ spec:
   template:
     metadata: { labels: { app: neo4j } }
     spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 7474, runAsGroup: 7474, fsGroup: 7474, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: neo4j
           image: neo4j:2026.10.2
@@ -51,6 +61,9 @@ spec:
           ports: [{ containerPort: 7687 }]
           readinessProbe: { tcpSocket: { port: 7687 }, periodSeconds: 10 }
           resources: { requests: { cpu: 100m, memory: 1Gi }, limits: { memory: 1792Mi } }
+          # the image's entrypoint writes neo4j.conf from the environment at start, so the root stays writable
+          # (see .trivyignore.yaml); everything else is locked down
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
           volumeMounts: [{ name: data, mountPath: /data }]
   volumeClaimTemplates:
     - metadata: { name: data }
@@ -71,6 +84,8 @@ spec:
   template:
     metadata: { labels: { app: redis } }
     spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 999, runAsGroup: 1000, fsGroup: 1000, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: redis
           image: redis:8.8.4-alpine
@@ -78,6 +93,7 @@ spec:
           ports: [{ containerPort: 6379 }]
           readinessProbe: { exec: { command: ["redis-cli", "ping"] }, periodSeconds: 5 }
           resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 512Mi } }
+          securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
           volumeMounts: [{ name: data, mountPath: /data }]
       volumes: [{ name: data, persistentVolumeClaim: { claimName: redis-data } }]
 ---
@@ -101,16 +117,22 @@ spec:
   template:
     metadata: { labels: { app: seaweedfs } }
     spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: seaweedfs
           image: chrislusf/seaweedfs:4.53
           args: ["server", "-dir=/data", "-s3", "-s3.config=/etc/seaweedfs/s3.json", "-master.volumeSizeLimitMB=256", "-volume.max=0"]
           ports: [{ containerPort: 8333 }]
           resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 512Mi } }
+          securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
           volumeMounts:
             - { name: data, mountPath: /data }
             - { name: s3config, mountPath: /etc/seaweedfs }
-      volumes: [{ name: s3config, secret: { secretName: seaweedfs-s3 } }]
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: s3config, secret: { secretName: seaweedfs-s3 } }
+        - { name: tmp, emptyDir: { sizeLimit: 256Mi } }
   volumeClaimTemplates:
     - metadata: { name: data }
       spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: 10Gi } } }
@@ -130,14 +152,23 @@ spec:
   template:
     metadata: { labels: { app: ollama } }
     spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: ollama
           image: ollama/ollama:0.40.16
-          env: [{ name: OLLAMA_MAX_LOADED_MODELS, value: "1" }, { name: OLLAMA_KEEP_ALIVE, value: 30m }]
+          env:
+            - { name: OLLAMA_MAX_LOADED_MODELS, value: "1" }
+            - { name: OLLAMA_KEEP_ALIVE, value: 30m }
+            - { name: OLLAMA_MODELS, value: /models }   # the image defaults to /root/.ollama, unusable as non-root
+            - { name: HOME, value: /tmp }
           ports: [{ containerPort: 11434 }]
           resources: { requests: { cpu: "1", memory: 3Gi }, limits: { memory: 5Gi } }
-          volumeMounts: [{ name: models, mountPath: /root/.ollama }]
-      volumes: [{ name: models, persistentVolumeClaim: { claimName: ollama-models } }]
+          securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: models, mountPath: /models }, { name: tmp, mountPath: /tmp }]
+      volumes:
+        - { name: models, persistentVolumeClaim: { claimName: ollama-models } }
+        - { name: tmp, emptyDir: { sizeLimit: 256Mi } }
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
