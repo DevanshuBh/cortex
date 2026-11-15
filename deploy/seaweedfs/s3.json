@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "cortex",
+      "credentials": [{ "accessKey": "cortex", "secretKey": "cortex-secret" }],
+      "actions": ["Read", "Write", "List", "Tagging", "Admin"]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+name: release
+
+# On a version tag: publish multi-arch images to GHCR (the Oracle Always Free VM is Arm).
+# The demo UI is published by pages.yml.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write

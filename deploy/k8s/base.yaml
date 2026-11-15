@@ -1,0 +1,50 @@
+# Namespaces, configuration and the sandbox namespace (gVisor, no network, quota).
+apiVersion: v1
+kind: Namespace
+metadata: { name: cortex }
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cortex-sandbox
+  labels: { pod-security.kubernetes.io/enforce: restricted }
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata: { name: gvisor }
+handler: runsc
+---
+# Sandbox pods: no ingress, no egress at all (in-cluster DNS included).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: deny-all, namespace: cortex-sandbox }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata: { name: sandbox-quota, namespace: cortex-sandbox }
+spec:
+  hard: { pods: "4", limits.cpu: "2", limits.memory: 1Gi }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: cortex-config, namespace: cortex }
+data:
+  CORTEX_ENV: production
+  CORTEX_DATABASE_URL_HOST: postgres
+  CORTEX_REDIS_URL: redis://redis:6379/0
+  CORTEX_BROKER_URL: redis://redis:6379/1
+  CORTEX_NEO4J_URI: bolt://neo4j:7687
+  CORTEX_S3_ENDPOINT_URL: http://seaweedfs:8333
+  CORTEX_S3_PUBLIC_ENDPOINT_URL: https://s3.CHANGE-ME.duckdns.org
+  CORTEX_OIDC_ISSUER: https://auth.CHANGE-ME.duckdns.org/realms/cortex
+  CORTEX_OIDC_JWKS_URL: http://keycloak:8080/realms/cortex/protocol/openid-connect/certs
+  CORTEX_OLLAMA_URL: http://ollama:11434
+  # CPU-only VM: smaller large tier; answers stream so the slower speed stays usable.
+  CORTEX_MODEL_SMALL: qwen3.5:2b
+  CORTEX_MODEL_LARGE: qwen3.5:4b
+  CORTEX_SANDBOX_RUNNER_URL: http://sandbox-runner:8090
+  CORTEX_CORS_ORIGINS: '["https://CHANGE-ME.duckdns.org","https://devanshubh.github.io"]'
+  CORTEX_OTLP_ENDPOINT: ""

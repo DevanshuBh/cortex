@@ -1,0 +1,256 @@
+# CORTEX local stack.   docker compose up -d --build      (GPU model server:  --profile gpu)
+# Optional profiles: observability (Prometheus + alerts, Grafana, Jaeger traces), mlflow.
+# With observability on, set CORTEX_OTLP_ENDPOINT=http://jaeger:4318 so spans are exported.
+# mem_limit on every service: an overload kills one container instead of exhausting the Docker VM (it did,
+# twice, while graph extraction, three model-loading workers and Ollama shared 8 GB).
+name: cortex
+
+x-backend: &backend
+  build: { context: ./backend }
+  image: cortex-backend:local
+  environment: &backend-env
+    CORTEX_ENV: local
+    CORTEX_DATABASE_URL: postgresql+psycopg://cortex_app:cortex_app@postgres:5432/cortex
+    CORTEX_MIGRATION_DATABASE_URL: postgresql+psycopg://cortex_owner:cortex_owner@postgres:5432/cortex
+    CORTEX_REDIS_URL: redis://redis:6379/0
+    CORTEX_BROKER_URL: redis://redis:6379/1
+    CORTEX_NEO4J_URI: bolt://neo4j:7687
+    CORTEX_NEO4J_PASSWORD: cortex-neo4j
+    CORTEX_S3_ENDPOINT_URL: http://seaweedfs:8333
+    CORTEX_S3_PUBLIC_ENDPOINT_URL: http://localhost:8333
+    CORTEX_OIDC_ISSUER: http://localhost:8080/realms/cortex
+    CORTEX_OIDC_JWKS_URL: http://keycloak:8080/realms/cortex/protocol/openid-connect/certs
+    CORTEX_OLLAMA_URL: ${CORTEX_OLLAMA_URL:-http://ollama:11434}
+    CORTEX_SANDBOX_RUNNER_URL: http://sandbox-runner:8090
+    CORTEX_SANDBOX_RUNNER_TOKEN: ${SANDBOX_RUNNER_TOKEN:-dev-sandbox-token}
+    CORTEX_OTLP_ENDPOINT: ${CORTEX_OTLP_ENDPOINT:-}
+    CORTEX_CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
+  read_only: true
+  tmpfs: ["/tmp:size=256m"]
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  restart: unless-stopped
+
+services:
+  postgres:
+    mem_limit: 1g
+    image: pgvector/pgvector:0.8.7-pg18-trixie
+    environment:
+      POSTGRES_PASSWORD: postgres-superuser-dev
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    ports: ["127.0.0.1:5432:5432"]
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "maintenance_work_mem=256MB", "-c", "max_connections=100"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cortex"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    mem_limit: 600m
+    image: redis:8.8.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
+    volumes: [redisdata:/data]
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  neo4j:
+    mem_limit: 2g
+    image: neo4j:2026.10.2
+    environment:
+      NEO4J_AUTH: neo4j/cortex-neo4j
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 768m
+      NEO4J_server_memory_pagecache_size: 512m
+      NEO4J_dbms_usage__report_enabled: "false"
+    volumes: [neo4jdata:/data]
+    ports: ["127.0.0.1:7474:7474", "127.0.0.1:7687:7687"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+    restart: unless-stopped
+
+  seaweedfs:
+    mem_limit: 512m
+    image: chrislusf/seaweedfs:4.53
+    command: ["server", "-dir=/data", "-s3", "-s3.config=/etc/seaweedfs/s3.json", "-master.volumeSizeLimitMB=256", "-volume.max=0", "-ip.bind=0.0.0.0"]
+    volumes:
+      - seaweeddata:/data
+      - ./deploy/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    ports: ["127.0.0.1:8333:8333"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9333/cluster/status >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  keycloak:
+    mem_limit: 1g
+    image: quay.io/keycloak/keycloak:26.8.2
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin-dev-password
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+      JAVA_OPTS_KC_HEAP: "-Xms256m -Xmx512m"
+    volumes: ["./deploy/keycloak/cortex-realm.json:/opt/keycloak/data/import/cortex-realm.json:ro"]
+    ports: ["127.0.0.1:8080:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  ollama:
+    mem_limit: 6g
+    image: ollama/ollama:0.40.16
+    profiles: [gpu]
+    environment:
+      OLLAMA_NUM_PARALLEL: "2"
+      OLLAMA_MAX_LOADED_MODELS: "2"
+      OLLAMA_KEEP_ALIVE: 30m
+    volumes: [ollamadata:/root/.ollama]
+    ports: ["127.0.0.1:11434:11434"]
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    <<: *backend
+    command: ["sh", "-c", "python -m cortex.cli migrate && python -m cortex.cli init"]
+    restart: "no"
+    healthcheck: { disable: true }
+    depends_on:
+      postgres: { condition: service_healthy }
+      neo4j: { condition: service_healthy }
+      seaweedfs: { condition: service_healthy }
+
+  api:
+    mem_limit: 1200m
+    <<: *backend
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      keycloak: { condition: service_started }
+
+  worker-ask:
+    mem_limit: 3g
+    <<: *backend
+    environment:
+      <<: *backend-env
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+    command: ["sh", "-c", "rm -rf /tmp/prometheus && mkdir -p /tmp/prometheus && exec celery -A cortex.worker.app worker -Q ask -c 2 --prefetch-multiplier=1 -n ask@%h --loglevel=INFO"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9100/metrics', timeout=2)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker-ingest:
+    mem_limit: 2g
+    <<: *backend
+    environment:
+      <<: *backend-env
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+    command: ["sh", "-c", "rm -rf /tmp/prometheus && mkdir -p /tmp/prometheus && exec celery -A cortex.worker.app worker -Q ingest -c 1 --prefetch-multiplier=1 -n ingest@%h --loglevel=INFO"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9100/metrics', timeout=2)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  sandbox-image:
+    build: { context: ./sandbox/image }
+    image: cortex-sandbox:latest
+    entrypoint: ["true"]
+    restart: "no"
+
+  sandbox-runner:
+    mem_limit: 256m
+    build: { context: ./sandbox/runner }
+    image: cortex-sandbox-runner:local
+    environment:
+      SANDBOX_RUNNER_TOKEN: ${SANDBOX_RUNNER_TOKEN:-dev-sandbox-token}
+      SANDBOX_IMAGE: cortex-sandbox:latest
+      SANDBOX_RUNTIME: ${SANDBOX_RUNTIME:-}
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+    depends_on:
+      sandbox-image: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ---- optional ------------------------------------------------------------------------------------------
+  prometheus:
+    mem_limit: 512m
+    image: prom/prometheus:v3.16.0
+    profiles: [observability]
+    volumes:
+      - ./deploy/observability/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/observability/alerts.yaml:/etc/prometheus/alerts.yaml:ro
+    ports: ["127.0.0.1:9090:9090"]
+
+  grafana:
+    mem_limit: 512m
+    image: grafana/grafana:13.2.6
+    profiles: [observability]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_PASSWORD: admin-dev-password
+    volumes:
+      - ./deploy/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["127.0.0.1:3001:3000"]
+
+  jaeger:
+    mem_limit: 512m
+    image: jaegertracing/jaeger:2.23.0
+    profiles: [observability]
+    ports: ["127.0.0.1:16686:16686", "127.0.0.1:4318:4318"]
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.18.0
+    profiles: [mlflow]
+    command: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////mlflow/mlflow.db", "--artifacts-destination", "/mlflow/artifacts"]
+    volumes: [mlflowdata:/mlflow]
+    ports: ["127.0.0.1:5000:5000"]
+
+volumes:
+  pgdata:
+  redisdata:
+  neo4jdata:
+  seaweeddata:
+  ollamadata:
+  mlflowdata:

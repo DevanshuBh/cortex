@@ -1,0 +1,6 @@
+region           = "ap-mumbai-1"
+compartment_ocid = "ocid1.tenancy.oc1..CHANGE-ME"
+ssh_public_key   = "ssh-ed25519 AAAA... you@laptop"
+admin_cidr       = "203.0.113.10/32"
+duckdns_domain   = "cortex-demo"
+duckdns_token    = "CHANGE-ME"

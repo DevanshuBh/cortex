@@ -1,0 +1,12 @@
+# Glossary: SIG (special interest group)
+
+Community members who collectively manage an ongoing piece or aspect of the larger Kubernetes open source project.
+
+ 
+
+Members within a SIG have a shared interest in advancing a specific area, such as architecture, API machinery, or documentation.
+SIGs must follow the SIG [governance guidelines](https://github.com/kubernetes/community/blob/main/committee-steering/governance/sig-governance.md), but can have their own contribution policy and channels of communication.
+
+For more information, see the [kubernetes/community](https://github.com/kubernetes/community) repo and the current list of [SIGs and Working Groups](https://github.com/kubernetes/community/blob/main/sig-list.md).
+
+<!-- source: https://github.com/kubernetes/website/blob/109ff5a76323d1c28a1cc6d5c41b139c8e2a22b3/content/en/docs/reference/glossary/sig.md -->

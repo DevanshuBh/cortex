@@ -1,0 +1,100 @@
+{"question": "What is a Pod?", "route": "content"}
+{"question": "How do I set a memory limit on a container?", "route": "content"}
+{"question": "What is the default image pull policy?", "route": "content"}
+{"question": "Explain what a ConfigMap is for.", "route": "content"}
+{"question": "What fields does a liveness probe take?", "route": "content"}
+{"question": "How large can a ConfigMap be?", "route": "content"}
+{"question": "What is the purpose of a namespace?", "route": "content"}
+{"question": "Describe the Pod lifecycle phases.", "route": "content"}
+{"question": "What is a headless Service?", "route": "content"}
+{"question": "How do I configure a startup probe?", "route": "content"}
+{"question": "What does the restartPolicy field control?", "route": "content"}
+{"question": "What is ephemeral storage?", "route": "content"}
+{"question": "Explain Pod Security Admission.", "route": "content"}
+{"question": "What are the QoS classes?", "route": "content"}
+{"question": "How does node-pressure eviction work?", "route": "content"}
+{"question": "What is a sidecar container?", "route": "content"}
+{"question": "What does the PreStop hook do?", "route": "content"}
+{"question": "Give an example of a CronJob schedule.", "route": "content"}
+{"question": "What is a finalizer?", "route": "content"}
+{"question": "How do labels differ from annotations?", "route": "content"}
+{"question": "What is a LimitRange?", "route": "content"}
+{"question": "How long is the default HPA sync period?", "route": "content"}
+{"question": "What is swap memory management in Kubernetes?", "route": "content"}
+{"question": "Explain topology spread constraints.", "route": "content"}
+{"question": "What is the maximum size of a Secret?", "route": "content"}
+{"question": "How do I write a NetworkPolicy that denies all ingress?", "route": "content"}
+{"question": "What is a static Pod?", "route": "content"}
+{"question": "What is the default Service type?", "route": "content"}
+{"question": "How do volume snapshots work?", "route": "content"}
+{"question": "What does the downward API expose?", "route": "content"}
+{"question": "Describe dual-stack networking.", "route": "content"}
+{"question": "What is a RuntimeClass?", "route": "content"}
+{"question": "What are user namespaces in Pods?", "route": "content"}
+{"question": "What does terminationGracePeriodSeconds do?", "route": "content"}
+{"question": "How are container images named?", "route": "content"}
+{"question": "What is Dynamic Resource Allocation?", "route": "content"}
+{"question": "What is the purpose of a PodDisruptionBudget?", "route": "content"}
+{"question": "Explain the restricted Pod Security Standard.", "route": "content"}
+{"question": "What is a StorageClass?", "route": "content"}
+{"question": "How does kubectl apply work?", "route": "content"}
+{"question": "Which object manages ReplicaSets?", "route": "relationship"}
+{"question": "What creates the Pods of a Job?", "route": "relationship"}
+{"question": "Which component assigns Pods to nodes?", "route": "relationship"}
+{"question": "What depends on the kube-apiserver?", "route": "relationship"}
+{"question": "How is a Deployment related to a ReplicaSet and to Pods?", "route": "relationship"}
+{"question": "Which controller evicts pods from tainted nodes?", "route": "relationship"}
+{"question": "What owns an EndpointSlice?", "route": "relationship"}
+{"question": "Which object binds a PersistentVolumeClaim to a PersistentVolume?", "route": "relationship"}
+{"question": "Who manages static Pods?", "route": "relationship"}
+{"question": "Which component implements Services on each node?", "route": "relationship"}
+{"question": "What does a HorizontalPodAutoscaler scale?", "route": "relationship"}
+{"question": "Which object does a CronJob create?", "route": "relationship"}
+{"question": "What is the relationship between StatefulSets and headless Services?", "route": "relationship"}
+{"question": "Which components talk to the container runtime?", "route": "relationship"}
+{"question": "What is the chain from Deployment to container?", "route": "relationship"}
+{"question": "Which objects reference a ServiceAccount?", "route": "relationship"}
+{"question": "What connects an Ingress to Pods?", "route": "relationship"}
+{"question": "Which controller creates EndpointSlices?", "route": "relationship"}
+{"question": "Which namespace holds node Lease objects?", "route": "relationship"}
+{"question": "What is owned by a ReplicaSet?", "route": "relationship"}
+{"question": "Which components run on every node?", "route": "relationship"}
+{"question": "How are ReplicationController and ReplicaSet related?", "route": "relationship"}
+{"question": "Which object provisions PersistentVolumes dynamically?", "route": "relationship"}
+{"question": "What does the cloud-controller-manager depend on?", "route": "relationship"}
+{"question": "Which controller cleans up finished Jobs?", "route": "relationship"}
+{"question": "Which objects can a VerticalPodAutoscaler target?", "route": "relationship"}
+{"question": "How are taints and tolerations connected to scheduling?", "route": "relationship"}
+{"question": "Which component restarts failed containers?", "route": "relationship"}
+{"question": "What links a Service to its EndpointSlices?", "route": "relationship"}
+{"question": "Which object manages DaemonSet Pods?", "route": "relationship"}
+{"question": "Explain how a Deployment controls Pods and what fields configure the rollout.", "route": "both"}
+{"question": "How does a StatefulSet use a headless Service, and how do I configure stable storage?", "route": "both"}
+{"question": "Describe how kube-scheduler binds Pods and which settings tune scoring.", "route": "both"}
+{"question": "How does the HPA scale a Deployment and what metrics can it use?", "route": "both"}
+{"question": "Explain how EndpointSlices relate to Services and what fields they contain.", "route": "both"}
+{"question": "How does a CronJob create Jobs and how do I limit concurrent runs?", "route": "both"}
+{"question": "How do PVCs bind to PVs and what access modes exist?", "route": "both"}
+{"question": "Explain how the kubelet manages static Pods and where the manifests live.", "route": "both"}
+{"question": "How does the node controller use Leases and what timeouts apply?", "route": "both"}
+{"question": "How does an Ingress route to Services, and how do I configure TLS?", "route": "both"}
+{"question": "Explain how garbage collection uses owner references and how to choose foreground deletion.", "route": "both"}
+{"question": "How does a DaemonSet schedule Pods on nodes and how are rolling updates configured?", "route": "both"}
+{"question": "How do Services select Pods and what does sessionAffinity do?", "route": "both"}
+{"question": "How does the CRI connect the kubelet to runtimes and which API version is required?", "route": "both"}
+{"question": "Explain how a ReplicaSet manages Pods and how to scale it.", "route": "both"}
+{"question": "How do taints repel Pods and which effects can a taint have?", "route": "both"}
+{"question": "How does a Job create Pods and what does backoffLimit control?", "route": "both"}
+{"question": "Explain how RBAC binds Roles to ServiceAccounts and what least privilege means.", "route": "both"}
+{"question": "How does dynamic provisioning use StorageClasses and what parameters can they set?", "route": "both"}
+{"question": "How does a PodDisruptionBudget interact with node drains and what values can it take?", "route": "both"}
+{"question": "How do init containers relate to app containers and in what order do they run?", "route": "both"}
+{"question": "How does the VPA update a Deployment and which update modes exist?", "route": "both"}
+{"question": "Explain how kube-proxy implements Services and which proxy modes exist.", "route": "both"}
+{"question": "How does the cloud-controller-manager interact with nodes and what controllers does it run?", "route": "both"}
+{"question": "How does a ResourceQuota relate to LimitRanges and what can each limit?", "route": "both"}
+{"question": "How does Pod priority affect preemption and how do I define a PriorityClass?", "route": "both"}
+{"question": "How do sidecar containers relate to init containers and how are they started?", "route": "both"}
+{"question": "How does the API server use admission webhooks and what are good practices?", "route": "both"}
+{"question": "How do NetworkPolicies select Pods and what does a default-deny policy look like?", "route": "both"}
+{"question": "How does the TTL controller relate to Jobs and how do I set the TTL?", "route": "both"}

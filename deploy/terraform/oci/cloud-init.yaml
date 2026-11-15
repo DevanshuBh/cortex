@@ -1,0 +1,26 @@
+#cloud-config
+# k3s + gVisor (runsc) + KEDA + cert-manager on the Always Free A1 VM. DuckDNS keeps the free hostname current.
+package_update: true
+packages: [curl, jq]
+write_files:
+  - path: /etc/cron.d/duckdns
+    permissions: "0644"
+    content: |
+      */5 * * * * root curl -fsS "https://www.duckdns.org/update?domains=${duckdns_domain}&token=${duckdns_token}&ip=" >/dev/null
+  # Register gVisor with k3s's containerd as runtime "runsc" (RuntimeClass "gvisor" points at it).
+  - path: /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
+    content: |
+      {{ template "base" . }}
+      [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.runsc]
+        runtime_type = "io.containerd.runsc.v1"
+runcmd:
+  - ARCH=$(uname -m); URL=https://storage.googleapis.com/gvisor/releases/release/latest/$ARCH
+  - curl -fsSLO $URL/runsc && curl -fsSLO $URL/runsc.sha512 && curl -fsSLO $URL/containerd-shim-runsc-v1 && curl -fsSLO $URL/containerd-shim-runsc-v1.sha512
+  - sha512sum -c runsc.sha512 -c containerd-shim-runsc-v1.sha512 && chmod a+rx runsc containerd-shim-runsc-v1 && mv runsc containerd-shim-runsc-v1 /usr/local/bin/
+  - curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--write-kubeconfig-mode 0640" sh -
+  - until kubectl get nodes; do sleep 5; done
+  - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  - export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+  - helm repo add kedacore https://kedacore.github.io/charts && helm repo add jetstack https://charts.jetstack.io && helm repo update
+  - helm install keda kedacore/keda --namespace keda --create-namespace
+  - helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set crds.enabled=true

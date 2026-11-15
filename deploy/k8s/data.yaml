@@ -1,0 +1,150 @@
+# Data stores as StatefulSets with persistent volumes (k3s local-path storage).
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: postgres, namespace: cortex }
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: { matchLabels: { app: postgres } }
+  template:
+    metadata: { labels: { app: postgres } }
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:0.8.7-pg18-trixie
+          env:
+            - { name: POSTGRES_PASSWORD, valueFrom: { secretKeyRef: { name: cortex-secrets, key: POSTGRES_PASSWORD } } }
+          args: ["-c", "shared_buffers=256MB", "-c", "max_connections=100"]
+          ports: [{ containerPort: 5432 }]
+          readinessProbe: { exec: { command: ["pg_isready", "-U", "postgres"] }, periodSeconds: 5 }
+          resources: { requests: { cpu: 100m, memory: 512Mi }, limits: { memory: 1536Mi } }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d }
+      volumes: [{ name: init, configMap: { name: postgres-init } }]
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: 10Gi } } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: postgres, namespace: cortex }
+spec: { selector: { app: postgres }, ports: [{ port: 5432 }] }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: neo4j, namespace: cortex }
+spec:
+  serviceName: neo4j
+  replicas: 1
+  selector: { matchLabels: { app: neo4j } }
+  template:
+    metadata: { labels: { app: neo4j } }
+    spec:
+      containers:
+        - name: neo4j
+          image: neo4j:2026.10.2
+          env:
+            - { name: NEO4J_AUTH, valueFrom: { secretKeyRef: { name: cortex-secrets, key: NEO4J_AUTH } } }
+            - { name: NEO4J_server_memory_heap_max__size, value: 768m }
+            - { name: NEO4J_server_memory_pagecache_size, value: 512m }
+          ports: [{ containerPort: 7687 }]
+          readinessProbe: { tcpSocket: { port: 7687 }, periodSeconds: 10 }
+          resources: { requests: { cpu: 100m, memory: 1Gi }, limits: { memory: 1792Mi } }
+          volumeMounts: [{ name: data, mountPath: /data }]
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: 5Gi } } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: neo4j, namespace: cortex }
+spec: { selector: { app: neo4j }, ports: [{ port: 7687 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: redis, namespace: cortex }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: redis } }
+  template:
+    metadata: { labels: { app: redis } }
+    spec:
+      containers:
+        - name: redis
+          image: redis:8.8.4-alpine
+          args: ["redis-server", "--appendonly", "yes", "--maxmemory", "384mb", "--maxmemory-policy", "noeviction"]
+          ports: [{ containerPort: 6379 }]
+          readinessProbe: { exec: { command: ["redis-cli", "ping"] }, periodSeconds: 5 }
+          resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 512Mi } }
+          volumeMounts: [{ name: data, mountPath: /data }]
+      volumes: [{ name: data, persistentVolumeClaim: { claimName: redis-data } }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: redis-data, namespace: cortex }
+spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: 1Gi } } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: redis, namespace: cortex }
+spec: { selector: { app: redis }, ports: [{ port: 6379 }] }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: seaweedfs, namespace: cortex }
+spec:
+  serviceName: seaweedfs
+  replicas: 1
+  selector: { matchLabels: { app: seaweedfs } }
+  template:
+    metadata: { labels: { app: seaweedfs } }
+    spec:
+      containers:
+        - name: seaweedfs
+          image: chrislusf/seaweedfs:4.53
+          args: ["server", "-dir=/data", "-s3", "-s3.config=/etc/seaweedfs/s3.json", "-master.volumeSizeLimitMB=256", "-volume.max=0"]
+          ports: [{ containerPort: 8333 }]
+          resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 512Mi } }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: s3config, mountPath: /etc/seaweedfs }
+      volumes: [{ name: s3config, secret: { secretName: seaweedfs-s3 } }]
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: 10Gi } } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: seaweedfs, namespace: cortex }
+spec: { selector: { app: seaweedfs }, ports: [{ port: 8333 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: ollama, namespace: cortex }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: ollama } }
+  template:
+    metadata: { labels: { app: ollama } }
+    spec:
+      containers:
+        - name: ollama
+          image: ollama/ollama:0.40.16
+          env: [{ name: OLLAMA_MAX_LOADED_MODELS, value: "1" }, { name: OLLAMA_KEEP_ALIVE, value: 30m }]
+          ports: [{ containerPort: 11434 }]
+          resources: { requests: { cpu: "1", memory: 3Gi }, limits: { memory: 5Gi } }
+          volumeMounts: [{ name: models, mountPath: /root/.ollama }]
+      volumes: [{ name: models, persistentVolumeClaim: { claimName: ollama-models } }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: ollama-models, namespace: cortex }
+spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: 15Gi } } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: ollama, namespace: cortex }
+spec: { selector: { app: ollama }, ports: [{ port: 11434 }] }

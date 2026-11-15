@@ -1,0 +1,1880 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "CORTEX API",
+  "description": "Multi-tenant research assistant: cited answers over your documents.",
+  "version": "1.0.0"
+ },
+ "paths": {
+  "/v1/me": {
+   "get": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Me",
+    "operationId": "me_v1_me_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Me"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/v1/documents": {
+   "post": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Create Document",
+    "description": "Register a document and get a presigned URL; the browser uploads straight to object storage.",
+    "operationId": "create_document_v1_documents_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreateDocumentRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreateDocumentResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "List Documents",
+    "operationId": "list_documents_v1_documents_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 200
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 50,
+       "title": "Limit"
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "default": 0,
+       "title": "Offset"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DocumentPage"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/documents/{document_id}/complete": {
+   "post": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Complete Upload",
+    "operationId": "complete_upload_v1_documents__document_id__complete_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "document_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Document Id"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TaskAccepted"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/documents/upload": {
+   "post": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Upload Document",
+    "description": "Upload through the API (CLI, tests, small files). The web app uses presigned uploads instead.",
+    "operationId": "upload_document_v1_documents_upload_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_document_v1_documents_upload_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UploadAccepted"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/v1/documents/{document_id}": {
+   "get": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Get Document",
+    "operationId": "get_document_v1_documents__document_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "document_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Document Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Document"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Delete Document",
+    "operationId": "delete_document_v1_documents__document_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "document_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Document Id"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TaskAccepted"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/documents/{document_id}/file": {
+   "get": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Document File",
+    "description": "The original file, for the source panel (PDF.js). Served through the API so the tenant check applies.",
+    "operationId": "document_file_v1_documents__document_id__file_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "document_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Document Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       },
+       "application/octet-stream": {}
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/ask": {
+   "post": {
+    "tags": [
+     "ask"
+    ],
+    "summary": "Ask",
+    "operationId": "ask_v1_ask_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idempotency-Key"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AskRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TaskAccepted"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/tasks/{task_id}": {
+   "get": {
+    "tags": [
+     "tasks"
+    ],
+    "summary": "Get Task",
+    "operationId": "get_task_v1_tasks__task_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "task_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Task Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Task"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/tasks/{task_id}/events": {
+   "get": {
+    "tags": [
+     "tasks"
+    ],
+    "summary": "Task Events",
+    "description": "SSE: ``status``, ``step``, ``evidence``, ``token``, ``code``, ``answer``, then ``done`` / ``error`` /\n``cancelled``. Event ids are Redis Stream ids; reconnect with ``Last-Event-ID`` to resume without gaps.",
+    "operationId": "task_events_v1_tasks__task_id__events_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "task_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Task Id"
+      }
+     },
+     {
+      "name": "Last-Event-ID",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Last-Event-Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Server-sent events",
+      "content": {
+       "application/json": {
+        "schema": {}
+       },
+       "text/event-stream": {}
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/tasks/{task_id}/cancel": {
+   "post": {
+    "tags": [
+     "tasks"
+    ],
+    "summary": "Cancel Task",
+    "operationId": "cancel_task_v1_tasks__task_id__cancel_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "task_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Task Id"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TaskAccepted"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/answers/{task_id}/feedback": {
+   "post": {
+    "tags": [
+     "ask"
+    ],
+    "summary": "Feedback",
+    "operationId": "feedback_v1_answers__task_id__feedback_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "task_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Task Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FeedbackRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/chunks/{chunk_id}": {
+   "get": {
+    "tags": [
+     "sources"
+    ],
+    "summary": "Get Chunk",
+    "operationId": "get_chunk_v1_chunks__chunk_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "chunk_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Chunk Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ChunkOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/graph/stats": {
+   "get": {
+    "tags": [
+     "sources"
+    ],
+    "summary": "Graph Stats",
+    "operationId": "graph_stats_v1_graph_stats_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/GraphStats"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/v1/admin/usage": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Usage",
+    "operationId": "usage_v1_admin_usage_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 365,
+       "minimum": 1,
+       "default": 30,
+       "title": "Days"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Usage"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/admin/eval-runs": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Eval Runs",
+    "operationId": "eval_runs_v1_admin_eval_runs_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 500,
+       "minimum": 1,
+       "default": 200,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/EvalRun"
+         },
+         "title": "Response Eval Runs V1 Admin Eval Runs Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/meta": {
+   "get": {
+    "tags": [
+     "meta"
+    ],
+    "summary": "Meta",
+    "description": "Public, non-sensitive configuration the UI shows (model names, limits).",
+    "operationId": "meta_v1_meta_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Meta V1 Meta Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "Answer": {
+    "properties": {
+     "question": {
+      "type": "string",
+      "title": "Question"
+     },
+     "answer": {
+      "type": "string",
+      "title": "Answer"
+     },
+     "evidence": {
+      "items": {
+       "$ref": "#/components/schemas/EvidenceItem"
+      },
+      "type": "array",
+      "title": "Evidence"
+     },
+     "graph_paths": {
+      "items": {
+       "$ref": "#/components/schemas/GraphPathOut"
+      },
+      "type": "array",
+      "title": "Graph Paths"
+     },
+     "route": {
+      "type": "string",
+      "title": "Route"
+     },
+     "partial": {
+      "type": "boolean",
+      "title": "Partial"
+     },
+     "not_found": {
+      "type": "boolean",
+      "title": "Not Found"
+     },
+     "steps": {
+      "type": "integer",
+      "title": "Steps"
+     },
+     "input_tokens": {
+      "type": "integer",
+      "title": "Input Tokens"
+     },
+     "output_tokens": {
+      "type": "integer",
+      "title": "Output Tokens"
+     },
+     "cost_usd": {
+      "type": "number",
+      "title": "Cost Usd",
+      "description": "Notional cost at reference list prices; real spend on local models is zero"
+     },
+     "latency_ms": {
+      "type": "integer",
+      "title": "Latency Ms"
+     },
+     "trace": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Trace"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "question",
+     "answer",
+     "evidence",
+     "graph_paths",
+     "route",
+     "partial",
+     "not_found",
+     "steps",
+     "input_tokens",
+     "output_tokens",
+     "cost_usd",
+     "latency_ms",
+     "trace",
+     "created_at"
+    ],
+    "title": "Answer"
+   },
+   "AskRequest": {
+    "properties": {
+     "question": {
+      "type": "string",
+      "maxLength": 2000,
+      "minLength": 3,
+      "title": "Question"
+     },
+     "router": {
+      "type": "string",
+      "enum": [
+       "llm",
+       "rules"
+      ],
+      "title": "Router",
+      "default": "llm"
+     }
+    },
+    "type": "object",
+    "required": [
+     "question"
+    ],
+    "title": "AskRequest"
+   },
+   "Body_upload_document_v1_documents_upload_post": {
+    "properties": {
+     "file": {
+      "type": "string",
+      "contentMediaType": "application/octet-stream",
+      "title": "File"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file"
+    ],
+    "title": "Body_upload_document_v1_documents_upload_post"
+   },
+   "ChunkOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "document_id": {
+      "type": "string",
+      "title": "Document Id"
+     },
+     "document_title": {
+      "type": "string",
+      "title": "Document Title"
+     },
+     "position": {
+      "type": "integer",
+      "title": "Position"
+     },
+     "heading_path": {
+      "type": "string",
+      "title": "Heading Path"
+     },
+     "text": {
+      "type": "string",
+      "title": "Text"
+     },
+     "char_start": {
+      "type": "integer",
+      "title": "Char Start"
+     },
+     "char_end": {
+      "type": "integer",
+      "title": "Char End"
+     },
+     "filename": {
+      "type": "string",
+      "title": "Filename"
+     },
+     "mime": {
+      "type": "string",
+      "title": "Mime"
+     },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "document_id",
+     "document_title",
+     "position",
+     "heading_path",
+     "text",
+     "char_start",
+     "char_end",
+     "filename",
+     "mime"
+    ],
+    "title": "ChunkOut"
+   },
+   "CreateDocumentRequest": {
+    "properties": {
+     "filename": {
+      "type": "string",
+      "maxLength": 255,
+      "minLength": 1,
+      "title": "Filename"
+     },
+     "content_type": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Content Type"
+     },
+     "size_bytes": {
+      "type": "integer",
+      "exclusiveMinimum": 0.0,
+      "title": "Size Bytes"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 300
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     }
+    },
+    "type": "object",
+    "required": [
+     "filename",
+     "content_type",
+     "size_bytes"
+    ],
+    "title": "CreateDocumentRequest"
+   },
+   "CreateDocumentResponse": {
+    "properties": {
+     "document_id": {
+      "type": "string",
+      "title": "Document Id"
+     },
+     "upload_url": {
+      "type": "string",
+      "title": "Upload Url"
+     },
+     "upload_headers": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Upload Headers"
+     },
+     "expires_in": {
+      "type": "integer",
+      "title": "Expires In"
+     }
+    },
+    "type": "object",
+    "required": [
+     "document_id",
+     "upload_url",
+     "upload_headers",
+     "expires_in"
+    ],
+    "title": "CreateDocumentResponse"
+   },
+   "Document": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "filename": {
+      "type": "string",
+      "title": "Filename"
+     },
+     "mime": {
+      "type": "string",
+      "title": "Mime"
+     },
+     "size_bytes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Size Bytes"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "pending_upload",
+       "uploaded",
+       "parsing",
+       "embedding",
+       "extracting",
+       "ready",
+       "failed"
+      ],
+      "title": "Status"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "chunk_count": {
+      "type": "integer",
+      "title": "Chunk Count"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "title",
+     "filename",
+     "mime",
+     "size_bytes",
+     "status",
+     "error",
+     "chunk_count",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "Document"
+   },
+   "DocumentPage": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/Document"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "limit": {
+      "type": "integer",
+      "title": "Limit"
+     },
+     "offset": {
+      "type": "integer",
+      "title": "Offset"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total",
+     "limit",
+     "offset"
+    ],
+    "title": "DocumentPage"
+   },
+   "EvalRun": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "git_commit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Git Commit"
+     },
+     "config": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Config"
+     },
+     "metrics": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Metrics"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "created_at",
+     "name",
+     "git_commit",
+     "config",
+     "metrics"
+    ],
+    "title": "EvalRun"
+   },
+   "EvidenceItem": {
+    "properties": {
+     "n": {
+      "type": "integer",
+      "title": "N"
+     },
+     "chunk_id": {
+      "type": "string",
+      "title": "Chunk Id"
+     },
+     "document_id": {
+      "type": "string",
+      "title": "Document Id"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "heading": {
+      "type": "string",
+      "title": "Heading"
+     },
+     "text": {
+      "type": "string",
+      "title": "Text"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     }
+    },
+    "type": "object",
+    "required": [
+     "n",
+     "chunk_id",
+     "document_id",
+     "title",
+     "heading",
+     "text",
+     "source"
+    ],
+    "title": "EvidenceItem"
+   },
+   "FeedbackDay": {
+    "properties": {
+     "day": {
+      "type": "string",
+      "title": "Day"
+     },
+     "up": {
+      "type": "integer",
+      "title": "Up"
+     },
+     "down": {
+      "type": "integer",
+      "title": "Down"
+     }
+    },
+    "type": "object",
+    "required": [
+     "day",
+     "up",
+     "down"
+    ],
+    "title": "FeedbackDay"
+   },
+   "FeedbackRequest": {
+    "properties": {
+     "rating": {
+      "type": "integer",
+      "enum": [
+       -1,
+       1
+      ],
+      "title": "Rating"
+     },
+     "comment": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Comment"
+     }
+    },
+    "type": "object",
+    "required": [
+     "rating"
+    ],
+    "title": "FeedbackRequest"
+   },
+   "GraphPathOut": {
+    "properties": {
+     "text": {
+      "type": "string",
+      "title": "Text"
+     },
+     "nodes": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Nodes"
+     },
+     "relations": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Relations"
+     },
+     "chunk_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Chunk Ids"
+     }
+    },
+    "type": "object",
+    "required": [
+     "text",
+     "nodes",
+     "relations",
+     "chunk_ids"
+    ],
+    "title": "GraphPathOut"
+   },
+   "GraphStats": {
+    "properties": {
+     "entities": {
+      "type": "integer",
+      "title": "Entities"
+     },
+     "relations": {
+      "type": "integer",
+      "title": "Relations"
+     },
+     "chunks": {
+      "type": "integer",
+      "title": "Chunks"
+     }
+    },
+    "type": "object",
+    "required": [
+     "entities",
+     "relations",
+     "chunks"
+    ],
+    "title": "GraphStats"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "type": "array",
+      "title": "Detail"
+     }
+    },
+    "type": "object",
+    "title": "HTTPValidationError"
+   },
+   "Me": {
+    "properties": {
+     "user_id": {
+      "type": "string",
+      "title": "User Id"
+     },
+     "tenant_id": {
+      "type": "string",
+      "title": "Tenant Id"
+     },
+     "roles": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Roles"
+     }
+    },
+    "type": "object",
+    "required": [
+     "user_id",
+     "tenant_id",
+     "roles"
+    ],
+    "title": "Me"
+   },
+   "Task": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "queued",
+       "running",
+       "succeeded",
+       "failed",
+       "cancelled"
+      ],
+      "title": "Status"
+     },
+     "input": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Input"
+     },
+     "result": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Result"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "answer": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Answer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "kind",
+     "status",
+     "input",
+     "result",
+     "error",
+     "attempts",
+     "created_at",
+     "started_at",
+     "finished_at"
+    ],
+    "title": "Task"
+   },
+   "TaskAccepted": {
+    "properties": {
+     "task_id": {
+      "type": "string",
+      "title": "Task Id"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "queued",
+       "running",
+       "succeeded",
+       "failed",
+       "cancelled"
+      ],
+      "title": "Status",
+      "default": "queued"
+     },
+     "created": {
+      "type": "boolean",
+      "title": "Created",
+      "default": true
+     }
+    },
+    "type": "object",
+    "required": [
+     "task_id"
+    ],
+    "title": "TaskAccepted"
+   },
+   "UploadAccepted": {
+    "properties": {
+     "task_id": {
+      "type": "string",
+      "title": "Task Id"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "queued",
+       "running",
+       "succeeded",
+       "failed",
+       "cancelled"
+      ],
+      "title": "Status",
+      "default": "queued"
+     },
+     "created": {
+      "type": "boolean",
+      "title": "Created",
+      "default": true
+     },
+     "document_id": {
+      "type": "string",
+      "title": "Document Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "task_id",
+     "document_id"
+    ],
+    "title": "UploadAccepted"
+   },
+   "Usage": {
+    "properties": {
+     "by_tier": {
+      "items": {
+       "$ref": "#/components/schemas/UsageTier"
+      },
+      "type": "array",
+      "title": "By Tier"
+     },
+     "daily": {
+      "items": {
+       "$ref": "#/components/schemas/UsageDay"
+      },
+      "type": "array",
+      "title": "Daily"
+     },
+     "routes": {
+      "items": {
+       "$ref": "#/components/schemas/UsageRoute"
+      },
+      "type": "array",
+      "title": "Routes"
+     },
+     "feedback": {
+      "items": {
+       "$ref": "#/components/schemas/FeedbackDay"
+      },
+      "type": "array",
+      "title": "Feedback"
+     },
+     "cost_note": {
+      "type": "string",
+      "title": "Cost Note",
+      "default": "Costs are notional, at reference list prices; local models cost nothing to run."
+     }
+    },
+    "type": "object",
+    "required": [
+     "by_tier",
+     "daily",
+     "routes",
+     "feedback"
+    ],
+    "title": "Usage"
+   },
+   "UsageDay": {
+    "properties": {
+     "day": {
+      "type": "string",
+      "title": "Day"
+     },
+     "answers": {
+      "type": "integer",
+      "title": "Answers"
+     },
+     "avg_cost_usd": {
+      "type": "number",
+      "title": "Avg Cost Usd"
+     },
+     "avg_latency_ms": {
+      "type": "number",
+      "title": "Avg Latency Ms"
+     },
+     "not_found": {
+      "type": "integer",
+      "title": "Not Found"
+     },
+     "partial": {
+      "type": "integer",
+      "title": "Partial"
+     }
+    },
+    "type": "object",
+    "required": [
+     "day",
+     "answers",
+     "avg_cost_usd",
+     "avg_latency_ms",
+     "not_found",
+     "partial"
+    ],
+    "title": "UsageDay"
+   },
+   "UsageRoute": {
+    "properties": {
+     "route": {
+      "type": "string",
+      "title": "Route"
+     },
+     "answers": {
+      "type": "integer",
+      "title": "Answers"
+     },
+     "avg_cost_usd": {
+      "type": "number",
+      "title": "Avg Cost Usd"
+     }
+    },
+    "type": "object",
+    "required": [
+     "route",
+     "answers",
+     "avg_cost_usd"
+    ],
+    "title": "UsageRoute"
+   },
+   "UsageTier": {
+    "properties": {
+     "tier": {
+      "type": "string",
+      "title": "Tier"
+     },
+     "provider": {
+      "type": "string",
+      "title": "Provider"
+     },
+     "calls": {
+      "type": "integer",
+      "title": "Calls"
+     },
+     "input_tokens": {
+      "type": "integer",
+      "title": "Input Tokens"
+     },
+     "output_tokens": {
+      "type": "integer",
+      "title": "Output Tokens"
+     },
+     "cost_usd": {
+      "type": "number",
+      "title": "Cost Usd"
+     },
+     "errors": {
+      "type": "integer",
+      "title": "Errors"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tier",
+     "provider",
+     "calls",
+     "input_tokens",
+     "output_tokens",
+     "cost_usd",
+     "errors"
+    ],
+    "title": "UsageTier"
+   },
+   "ValidationError": {
+    "properties": {
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Location"
+     },
+     "msg": {
+      "type": "string",
+      "title": "Message"
+     },
+     "type": {
+      "type": "string",
+      "title": "Error Type"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "ctx": {
+      "type": "object",
+      "title": "Context"
+     }
+    },
+    "type": "object",
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError"
+   }
+  },
+  "securitySchemes": {
+   "HTTPBearer": {
+    "type": "http",
+    "scheme": "bearer"
+   }
+  }
+ }
+}

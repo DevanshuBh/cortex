@@ -1,0 +1,59 @@
+# Every alert links a runbook in docs/runbooks/. Thresholds come from the SLO table in the README.
+groups:
+  - name: cortex
+    rules:
+      - alert: EvalRecallBelowBaseline
+        expr: min by (config) (cortex_eval_recall_at_10{config="reranked"}) < 0.90
+        for: 0m
+        labels: { severity: page }
+        annotations:
+          summary: "Nightly Recall@10 ({{ $labels.config }}) fell below the 0.90 baseline: {{ $value }}"
+          runbook: docs/runbooks/eval-regression.md
+
+      - alert: QueueDepthRising
+        expr: max(cortex_queue_depth{queue="ask"}) > 20 and deriv(cortex_queue_depth{queue="ask"}[5m]) > 0
+        for: 5m
+        labels: { severity: page }
+        annotations:
+          summary: "{{ $value }} questions waiting and the queue keeps growing"
+          runbook: docs/runbooks/queue-depth.md
+
+      - alert: AnswerLatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(cortex_task_duration_seconds_bucket{kind="ask"}[10m]))) > 60
+        for: 10m
+        labels: { severity: ticket }
+        annotations:
+          summary: "p95 answer time is {{ $value | humanizeDuration }} (SLO 60 s)"
+          runbook: docs/runbooks/answer-latency.md
+
+      - alert: ModelErrorsOrThrottling
+        expr: sum(rate(cortex_llm_errors_total[5m])) / clamp_min(sum(rate(cortex_llm_calls_total[5m])), 1e-9) > 0.05
+        for: 5m
+        labels: { severity: page }
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of model calls fail or are throttled"
+          runbook: docs/runbooks/model-errors.md
+
+      - alert: LoopGuardTriggersSpiking
+        expr: sum(rate(cortex_loop_guard_triggers_total[15m])) / clamp_min(sum(rate(cortex_answers_total[15m])), 1e-9) > 0.2
+        for: 15m
+        labels: { severity: ticket }
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of answers stop on a budget or loop guard"
+          runbook: docs/runbooks/loop-guard.md
+
+      - alert: CostPerQueryHigh
+        expr: histogram_quantile(0.5, sum by (le) (rate(cortex_query_cost_usd_bucket[1h]))) > 0.01
+        for: 30m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Median notional cost per question is ${{ $value }}"
+          runbook: docs/runbooks/cost.md
+
+      - alert: SandboxUnavailable
+        expr: sum(increase(cortex_sandbox_runs_total{outcome="unavailable"}[10m])) > 0
+        for: 0m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Coder jobs cannot reach the sandbox runner"
+          runbook: docs/runbooks/sandbox.md

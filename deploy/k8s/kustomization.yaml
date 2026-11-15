@@ -1,0 +1,20 @@
+# kubectl apply -k deploy/k8s     (after: secrets from secrets.enc.yaml via SOPS; KEDA, cert-manager and gVisor
+# installed on the node — see deploy/terraform/oci/cloud-init.yaml)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: [base.yaml, data.yaml, keycloak.yaml, app.yaml, edge.yaml]
+configMapGenerator:
+  - name: postgres-init
+    namespace: cortex
+    files: [init.sql=postgres-init.sql]
+  - name: keycloak-realm
+    namespace: cortex
+    files: [cortex-realm.json=keycloak-realm.json]
+secretGenerator:
+  - name: seaweedfs-s3
+    namespace: cortex
+    files: [s3.json=seaweedfs-s3.json]
+generatorOptions: { disableNameSuffixHash: true }
+images:
+  - { name: cortex-backend, newName: ghcr.io/devanshubh/cortex-backend, newTag: latest }
+  - { name: cortex-sandbox-runner, newName: ghcr.io/devanshubh/cortex-sandbox-runner, newTag: latest }

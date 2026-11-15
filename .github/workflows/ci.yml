@@ -1,0 +1,81 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { enable-cache: true }
+      - run: uv sync --frozen --extra eval
+      - name: Lint and format
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Type check (mypy strict)
+        run: uv run mypy
+      - name: Unit tests
+        run: uv run pytest tests/unit -q
+      - name: Integration tests (Postgres, Redis, Neo4j via Testcontainers)
+        run: uv run pytest tests/integration -q
+      - name: Sandbox escape tests
+        run: |
+          docker build -t cortex-sandbox:latest ../sandbox/image
+          uv run pytest tests/sandbox -q
+
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: cd backend && uv sync --frozen && uv run python scripts/export_openapi.py
+      - run: cd web && npm ci && npm run gen:api
+      - name: API contract and generated types are committed and in sync
+        run: git diff --exit-code -- web/openapi.json web/src/lib/api-types.ts
+
+  web:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build (static export, demo mode for end-to-end tests)
+        run: npm run build
+        env: { NEXT_PUBLIC_DEMO: "1" }
+      - run: npx playwright install --with-deps chromium
+      - name: End-to-end journeys with accessibility checks (desktop + mobile)
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: playwright-report, path: web/playwright-report }
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan the repository (dependencies, IaC, secrets)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

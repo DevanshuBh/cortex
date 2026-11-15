@@ -1,0 +1,75 @@
+# Ingress (k3s Traefik + cert-manager Let's Encrypt), queue-based autoscaling (KEDA), network policies.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cortex
+  namespace: cortex
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    traefik.ingress.kubernetes.io/router.middlewares: cortex-security-headers@kubernetescrd
+spec:
+  tls: [{ hosts: [api.CHANGE-ME.duckdns.org, auth.CHANGE-ME.duckdns.org, s3.CHANGE-ME.duckdns.org], secretName: cortex-tls }]
+  rules:
+    - host: api.CHANGE-ME.duckdns.org
+      http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: api, port: { number: 8000 } } } }] }
+    - host: auth.CHANGE-ME.duckdns.org
+      http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: keycloak, port: { number: 8080 } } } }] }
+    - host: s3.CHANGE-ME.duckdns.org
+      http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: seaweedfs, port: { number: 8333 } } } }] }
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata: { name: security-headers, namespace: cortex }
+spec:
+  headers:
+    stsSeconds: 31536000
+    stsIncludeSubdomains: true
+    contentTypeNosniff: true
+    frameDeny: true
+    referrerPolicy: strict-origin-when-cross-origin
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata: { name: worker-ask, namespace: cortex }
+spec:
+  scaleTargetRef: { name: worker-ask }
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  cooldownPeriod: 300
+  triggers:
+    - type: redis
+      metadata:
+        address: redis.cortex.svc:6379
+        databaseIndex: "1" # Celery broker database
+        listName: ask
+        listLength: "4" # roughly one replica per 4 waiting questions
+---
+# Default deny inside the namespace, then allow only the paths the design uses.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny-ingress, namespace: cortex }
+spec: { podSelector: {}, policyTypes: [Ingress] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-edge, namespace: cortex }
+spec:
+  podSelector: { matchExpressions: [{ key: app, operator: In, values: [api, keycloak, seaweedfs] }] }
+  ingress: [{ from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }] }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-app-to-data, namespace: cortex }
+spec:
+  podSelector: { matchExpressions: [{ key: app, operator: In, values: [postgres, redis, neo4j, seaweedfs, ollama, keycloak, sandbox-runner] }] }
+  ingress:
+    - from:
+        - podSelector: { matchExpressions: [{ key: app, operator: In, values: [api, worker-ask, worker-ingest] }] }
+        - podSelector: { matchLabels: { job-name: migrate } }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-metrics-scrape, namespace: cortex }
+spec:
+  podSelector: { matchExpressions: [{ key: app, operator: In, values: [api, worker-ask, worker-ingest] }] }
+  ingress: [{ from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: monitoring } } }] }]
